@@ -1,0 +1,22 @@
+0.把文件load到hive表中：
+createtable dinggou_1(telnumber string,dinggouguanxi string) row formatdelimited fields terminated by '\t' lines terminated by '\n';
+loaddata local inpath '/home/input/dinggou_1.txt' overwrite into tabledinggou_1;
+createtable dinggou_2(telnumber string,dinggouguanxi string) row formatdelimited fields terminated by '\t' lines terminated by '\n';
+loaddata local inpath '/home/input/dinggou_2.txt' overwrite into tabledinggou_2;
+1、创建表：
+createtable t1(tel string,dinggou array<string>);
+createtable t2(tel string,dinggou array<string>);
+2、把分割后的结果存在t1/t2中：
+insertinto table t1 select telnumber,split(dinggouguanxi,'\\|') from dinggou_1;
+insertinto table t2 select telnumber,split(dinggouguanxi,'\\|') from dinggou_2;
+3、行转列：
+createtable t11 as select tel,name from t1 lateral view explode(dinggou) dinggou asname;
+createtable t21 as select tel,name from t2 lateral view explode(dinggou) dinggou asname;
+4、selecta.tel,a.name,b.name from t11 a left outer join t21 b on a.tel=b.tel anda.name=b.name;
+select a.tel,a.name,b.name from t11 a left outer join t21 b ona.tel=b.tel and a.name=b.name where b.name is not null;文件1和文件2相同的：第三列非NULL。
+create table more1 as select a.tel,a.namefrom t11 a left outer join t21 b on a.tel=b.tel and a.name=b.name where b.nameis null;文件1比文件2多的：第三列为NULL的。
+create table same as select a.tel,a.namefrom t11 a left outer join t21 b on a.tel=b.tel and a.name=b.name where b.nameis not null;
+5、列转行： 第二个表多的：select tel,concat_ws('|',collect_set(name)) from more2 groupby tel;
+第一个表多的：select tel,concat_ws('|',collect_set(name)) from more1 groupby tel; 
+两个表相同的：select tel,concat_ws('|',collect_set(name)) from same group bytel;
+
